@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import Dropzone from 'react-dropzone';
-import { Alert, Form, Panel, FormGroup, Col, Button } from 'react-bootstrap';
+import { Alert, Form, Panel, FormGroup, Col, Button, ControlLabel, FormControl } from 'react-bootstrap';
 import request from "superagent";
 
 const autoBind = require('auto-bind');
@@ -12,7 +12,9 @@ class QSI extends Component {
             accepted: null,
             rejected: null,
             answer: [],
+            x: NaN,
             reject: false,
+            imageLoaded: false,
             dropMessage: 'Add .csv file here. Click here to open File Dialog'
         }
         autoBind(this);
@@ -28,16 +30,21 @@ class QSI extends Component {
         }
     }
 
+    handleX(e) {
+        this.setState({x: e.target.value})
+    }
+
     handleSubmit() {
         if(this.state.accepted){
-            const req = request.post('http://localhost:8080/qsi');
-
+            this.setState({imageLoaded: false})
+            const req = request.post(`http://localhost:8080/qsi`);
+            
             this.state.accepted.forEach(file => {
                 req.attach("upload", file)
                 .then( res => {
                     // let string = JSON.stringify(res.body)[0][0]
-                    this.setState({answer: res.body[0]})
-                });
+                    this.setState({answer: res.body[0], imageLoaded: true})
+                })
             });
             
         }
@@ -46,10 +53,33 @@ class QSI extends Component {
     AlertRejected(props) {
         const reject = props.reject
         if (reject) {
-            return (<Alert bsStyle="warning">Please provide a valid CSV file.</Alert>)
+            return (<Alert bsStyle="warning">{this.state.alert}</Alert>)
         }
         else {
             return (<div />)
+        }
+    }
+
+    Functions(props){
+        const loaded = props.loaded
+        if(loaded){
+            let s = 
+                this.state.answer.f.map((element, index)=>{
+                    let f = element[0].split(" ")
+                    return(<li key={index}>{f[0]+index+f[1]+" = "+element[1]}</li>)
+                })
+            return(s);
+        }else{
+            return(<div/>)
+        }
+    }
+
+    Graph(props){
+        const imageLoaded = props.imageLoaded
+        if(imageLoaded){
+            return(<img src={this.state.answer.uri[0]} alt="graph"/>)
+        }else{
+            return (<h3>Graph</h3>)
         }
     }
 
@@ -59,9 +89,13 @@ class QSI extends Component {
                 <h1>Quadratic Spline Interpolation</h1>
                 <this.AlertRejected reject={this.state.reject} />
                 <div style={{ display: 'flex' }}>
-                    <div style={{ width: '50%', flexDirection: 'row', paddingTop: 20 }}>
+                    <div style={{ height: '150px', width: '50%', flexDirection: 'row', paddingTop: 20 }}>
                         <Dropzone multiple={false} accept=".csv" onDropRejected={() => this.setState({ reject: true })} onDropAccepted={() => this.setState({ reject: false })} onDrop={this.onDrop} style={{ height: '70%', border: '5px dotted black', width: '80%', alignSelf: 'center' }}><p style={{ textAlign: "center", padding: 5, fontSize: 20, fontWeight: 'lighter'}}>{this.state.dropMessage}</p></Dropzone>
                         <Form style={{ horizontal: 'true', width: '80%' }}>
+                            <FormGroup bsSize="large" >
+                                <Col componentClass={ControlLabel} sm={10}>X</Col>
+                                <Col sm={5}> <FormControl type='number' onChange={this.handleX} disabled={!this.state.imageLoaded}/></Col>
+                            </FormGroup>
                             <FormGroup>
                                 <Col sm={5}>
                                 <Button bsSize='large' bsStyle='primary' onClick={this.handleSubmit}>Solve</Button>
@@ -74,14 +108,12 @@ class QSI extends Component {
                             <Panel.Heading><h3>Results</h3></Panel.Heading>
                             <Panel.Body>
                             <ul>
-                            {
-                                this.state.answer.map((item,index)=>{
-                                    return(<li key={index}>{item}</li>)
-                                })
-                            }
+                                <this.Functions loaded={this.state.imageLoaded}/>
                             </ul>
                             </Panel.Body>
-                            <Panel.Body><div>Graph</div></Panel.Body>
+                            <Panel.Body>
+                                <this.Graph imageLoaded={this.state.imageLoaded}/>
+                            </Panel.Body>
                         </Panel>
                     </div>
                 </div>
